@@ -854,13 +854,11 @@ async function addSignedUrlsToPhotos() {
    DISPLAY PHOTOS
 ========================================================= */
 
-function renderPhotos() {
 
+function renderPhotos() {
     photosGrid.innerHTML = "";
 
-
     if (photos.length === 0) {
-
         photosGrid.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">📷</div>
@@ -868,40 +866,31 @@ function renderPhotos() {
                 <p>Upload your first little memory together ❤️</p>
             </div>
         `;
-
         return;
     }
 
-
     photos.forEach(photo => {
-
-        const card =
-            document.createElement("div");
-
+        const card = document.createElement("div");
         card.className = "photo-card";
 
+        const safeName = escapeHTML(
+            photo.sender_name || "Duffer & Khushi"
+        );
 
-        const safeName =
-            escapeHTML(
-                photo.sender_name ||
-                "Duffer & Khushi"
-            );
-
-
-        const date =
-            formatDate(
-                photo.created_at
-            );
-
+        const date = formatDate(photo.created_at);
 
         card.innerHTML = `
             ${
                 photo.url
                     ? `
                         <img
+                            class="gallery-photo"
                             src="${photo.url}"
                             alt="Memory uploaded by ${safeName}"
                             loading="lazy"
+                            tabindex="0"
+                            role="button"
+                            aria-label="Open photo full screen"
                         >
                     `
                     : `
@@ -913,7 +902,6 @@ function renderPhotos() {
             }
 
             <div class="photo-card-footer">
-
                 <div class="photo-sender">
                     ❤️ ${safeName}
                 </div>
@@ -923,30 +911,102 @@ function renderPhotos() {
                 </div>
 
                 <button
+                    type="button"
                     class="delete-photo-button"
                     data-photo-id="${photo.id}"
                 >
                     Delete memory
                 </button>
-
             </div>
         `;
 
+        const photoImage = card.querySelector(".gallery-photo");
 
-        const deleteButton =
-            card.querySelector(
-                ".delete-photo-button"
-            );
+        if (photoImage) {
+            const openViewer = () => {
+                openPhotoViewer(
+                    photo.url,
+                    photo.sender_name || "Duffer & Khushi"
+                );
+            };
 
+            photoImage.addEventListener("click", openViewer);
 
-        deleteButton.addEventListener(
-            "click",
-            () => deletePhoto(photo.id)
+            photoImage.addEventListener("keydown", event => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openViewer();
+                }
+            });
+        }
+
+        const deleteButton = card.querySelector(
+            ".delete-photo-button"
         );
 
+        deleteButton.addEventListener("click", () => {
+            deletePhoto(photo.id);
+        });
 
         photosGrid.appendChild(card);
     });
+}
+
+
+function openPhotoViewer(photoUrl, senderName) {
+    // Close an existing viewer, if one is open.
+    const existingViewer = document.querySelector(
+        ".photo-viewer-overlay"
+    );
+
+    if (existingViewer) {
+        existingViewer.remove();
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "photo-viewer-overlay";
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "photo-viewer-close";
+    closeButton.textContent = "×";
+    closeButton.setAttribute("aria-label", "Close photo");
+
+    const image = document.createElement("img");
+    image.className = "photo-viewer-image";
+    image.src = photoUrl;
+    image.alt = "Full photo shared by " + senderName;
+
+    const caption = document.createElement("div");
+    caption.className = "photo-viewer-caption";
+    caption.textContent = "❤️ Shared by " + senderName;
+
+    overlay.appendChild(closeButton);
+    overlay.appendChild(image);
+    overlay.appendChild(caption);
+
+    document.body.appendChild(overlay);
+
+    function closeViewer() {
+        overlay.remove();
+        document.removeEventListener("keydown", handleKeydown);
+    }
+
+    function handleKeydown(event) {
+        if (event.key === "Escape") {
+            closeViewer();
+        }
+    }
+
+    closeButton.addEventListener("click", closeViewer);
+
+    overlay.addEventListener("click", event => {
+        if (event.target === overlay) {
+            closeViewer();
+        }
+    });
+
+    document.addEventListener("keydown", handleKeydown);
 }
 
 
