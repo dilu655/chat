@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <meta name="theme-color" content="#ff5c8a">
+
+    <title>Duffer ❤️ Khushi</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- =====================================================
+         LOGIN SCREEN
+    ====================================================== -->
+
+    <section id="loginScreen" class="screen login-screen">
+
+        <div class="love-background">
+            <span>❤️</span>
+            <span>💕</span>
+            <span>✨</span>
+            <span>💗</span>
+            <span>✨</span>
+        </div>
+
+        <div class="login-box">
+
+            <div class="love-logo">
+                ❤️
+            </div>
+
+            <h1>Duffer <span>❤️</span> Khushi</h1>
+
+            <p class="login-tagline">
+                Our little private world
+            </p>
+
+            <div class="login-divider">
+                <span>💞</span>
+            </div>
+
+            <label for="usernameInput" class="input-label">
+                Who are you?
+            </label>
+
+            <select id="usernameInput" class="login-input">
+                <option value="">Choose your name</option>
+                <option value="Duffer">Duffer</option>
+                <option value="Khushi">Khushi</option>
+            </select>
+
+            <label for="passwordInput" class="input-label">
+                Password
+            </label>
+
+            <div class="password-wrapper">
+
+                <input
+                    type="password"
+                    id="passwordInput"
+                    class="login-input"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                >
+
+                <button
+                    type="button"
+                    id="togglePasswordButton"
+                    class="password-toggle"
+                    aria-label="Show password"
+                >
+                    👁️
+                </button>
+
+            </div>
+
+            <button id="loginButton" class="primary-button login-button">
+                <span>Enter Our World</span>
+                <span>💗</span>
+            </button>
+
+            <p id="loginMessage" class="message"></p>
+
+            <p class="private-note">
+                🔒 Just for Duffer & Khushi
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         MAIN APP
+    ====================================================== -->
+
+    <section id="appScreen" class="screen hidden">
+
+        <header class="app-header">
+
+            <div class="header-brand">
+
+                <div class="header-heart">
+                    ❤️
+                </div>
+
+                <div>
+                    <h1>Duffer <span>❤️</span> Khushi</h1>
+                    <p id="currentUserDisplay">Our private world</p>
+                </div>
+
+            </div>
+
+            <button id="logoutButton" class="logout-button">
+                <span>Logout</span>
+                <span>↗</span>
+            </button>
+
+        </header>
+
+
+        <!-- =================================================
+             HOME
+        ================================================== -->
+
+        <main id="homePage" class="page">
+
+            <div class="home-heading">
+
+                <span class="small-heart">💗</span>
+
+                <div>
+                    <h2>Our Little World</h2>
+                    <p>Save the moments that belong to us.</p>
+                </div>
+
+            </div>
+
+
+            <div class="home-cards">
+
+                <!-- Upload Photo -->
+
+                <button id="uploadPhotoButton" class="home-card">
+
+                    <div class="card-icon photo-icon">
+                        📸
+                    </div>
+
+                    <div class="card-content">
+                        <h3>Upload Photo</h3>
+                        <p>Save a new memory in our story.</p>
+                    </div>
+
+                    <div class="card-arrow">
+                        →
+                    </div>
+
+                </button>
+
+
+                <!-- Uploaded Photos -->
+
+                <button id="uploadedPhotosButton" class="home-card">
+
+                    <div class="card-icon gallery-icon">
+                        💞
+                    </div>
+
+                    <div class="card-content">
+                        <h3>Our Photos</h3>
+                        <p>Look back at our shared memories.</p>
+                    </div>
+
+                    <div class="card-arrow">
+                        →
+                    </div>
+
+                </button>
+
+
+                <!-- Messages -->
+
+                <button id="messageButton" class="home-card">
+
+                    <div class="card-icon message-icon">
+                        💌
+                    </div>
+
+                    <div class="card-content">
+                        <h3>Our Messages</h3>
+                        <p>Leave a little piece of your heart.</p>
+                    </div>
+
+                    <div class="card-arrow">
+                        →
+                    </div>
+
+                </button>
+
+            </div>
+
+
+            <div class="home-footer">
+                <span>∞</span>
+                <p>Our story, one moment at a time.</p>
+                <span>❤️</span>
+            </div>
+
+        </main>
+
+
+        <!-- =================================================
+             UPLOAD PHOTO PAGE
+        ================================================== -->
+
+        <main id="uploadPage" class="page hidden">
+
+            <button class="back-button" data-page="home">
+                <span>←</span>
+                <span>Back</span>
+            </button>
+
+            <div class="page-title-row">
+
+                <div>
+                    <span class="page-icon">📸</span>
+                    <h2>New Memory</h2>
+                </div>
+
+                <span class="title-heart">❤️</span>
+
+            </div>
+
+            <p class="page-description">
+                Choose a photo and keep this moment in our little story.
+            </p>
+
+
+            <label for="photoInput" class="file-picker">
+
+                <div class="file-picker-icon">
+                    🖼️
+                </div>
+
+                <strong>Choose a photo</strong>
+
+                <span>From your phone</span>
+
+            </label>
+
+            <input
+                type="file"
+                id="photoInput"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                class="file-input"
+            >
+
+
+            <div id="photoPreview" class="photo-preview hidden">
+
+                <div class="preview-label">
+                    Your memory
+                </div>
+
+                <img id="previewImage" src="" alt="Photo preview">
+
+            </div>
+
+
+            <button id="uploadButton" class="primary-button" disabled>
+                <span>Save This Memory</span>
+                <span>❤️</span>
+            </button>
+
+            <p id="uploadMessage" class="message"></p>
+
+        </main>
+
+
+        <!-- =================================================
+             PHOTOS PAGE
+        ================================================== -->
+
+        <main id="photosPage" class="page hidden">
+
+            <button class="back-button" data-page="home">
+                <span>←</span>
+                <span>Back</span>
+            </button>
+
+            <div class="page-title-row">
+
+                <div>
+                    <span class="page-icon">💞</span>
+                    <h2>Our Memories</h2>
+                </div>
+
+                <span class="title-heart">✨</span>
+
+            </div>
+
+            <p class="page-description">
+                Little moments saved by Duffer & Khushi.
+            </p>
+
+
+            <div id="photosLoading" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p>Opening our memories...</p>
+            </div>
+
+
+            <div id="photosGrid" class="photos-grid">
+                <!-- Photos appear here -->
+            </div>
+
+        </main>
+
+
+        <!-- =================================================
+             MESSAGE PAGE
+        ================================================== -->
+
+        <main id="messagePage" class="page hidden">
+
+            <button class="back-button" data-page="home">
+                <span>←</span>
+                <span>Back</span>
+            </button>
+
+            <div class="page-title-row">
+
+                <div>
+                    <span class="page-icon">💌</span>
+                    <h2>Our Messages</h2>
+                </div>
+
+                <span class="title-heart">❤️</span>
+
+            </div>
+
+            <p class="page-description">
+                Words between two hearts.
+            </p>
+
+
+            <div id="chatLoading" class="loading-state hidden">
+                <div class="spinner"></div>
+                <p>Opening our conversation...</p>
+            </div>
+
+
+            <div id="chatMessages" class="chat-messages">
+                <!-- Messages appear here -->
+            </div>
+
+
+            <div class="chat-input-area">
+
+                <input
+                    type="text"
+                    id="messageInput"
+                    placeholder="Write something from your heart..."
+                    maxlength="1000"
+                    autocomplete="off"
+                >
+
+                <button id="sendMessageButton" class="send-button">
+                    ❤️
+                </button>
+
+            </div>
+
+            <p class="chat-hint">
+                Press Enter to send
+            </p>
+
+        </main>
+
+    </section>
+
+
+    <!-- =====================================================
+         JAVASCRIPT
+    ====================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+
+</body>
+
+</html>
