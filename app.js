@@ -65,6 +65,9 @@ let messages = [];
 let photos = [];
 
 let realtimeChannel = null;
+let realtimeSubscribed = false;
+let typingTimeout = null;
+let remoteTypingTimeout = null;
 
 
 /* =========================================================
@@ -123,6 +126,16 @@ const sendMessageButton =
 
 function showPage(page) {
 
+    if (page !== "message") {
+        stopTyping();
+
+        const typingStatus =
+            document.getElementById("chatTypingStatus");
+
+        if (typingStatus) {
+            typingStatus.classList.add("hidden");
+        }
+    }
     homePage.classList.add("hidden");
     uploadPage.classList.add("hidden");
     photosPage.classList.add("hidden");
@@ -272,104 +285,6 @@ async function login() {
         <span>💗</span>
     `;
 }
-
-
-/* =========================================================
-   CHECK EXISTING SESSION
-========================================================= */
-
-async function checkExistingSession() {
-
-    const { data, error } =
-        await supabaseClient.auth.getSession();
-
-    if (error) {
-
-        console.error(
-            "SESSION ERROR:",
-            error
-        );
-
-        return;
-    }
-
-
-    if (!data.session) {
-
-        loginScreen.classList.remove("hidden");
-        appScreen.classList.add("hidden");
-
-        return;
-    }
-
-
-    const user = data.session.user;
-
-    const matchedUser =
-        findUserByEmail(user.email);
-
-
-    /*
-       If the email is not one of our two configured
-       accounts, sign out rather than opening the app.
-    */
-
-    if (!matchedUser) {
-
-        await supabaseClient.auth.signOut();
-
-        return;
-    }
-
-
-    currentUser = {
-        id: user.id,
-        name: matchedUser.name,
-        email: matchedUser.email
-    };
-
-
-    loginScreen.classList.add("hidden");
-    appScreen.classList.remove("hidden");
-
-    currentUserDisplay.textContent =
-        `Logged in as ${currentUser.name} ❤️`;
-
-    subscribeToRealtime();
-
-    showPage("home");
-}
-
-
-/* =========================================================
-   FIND USER
-========================================================= */
-
-function findUserByEmail(email) {
-
-    if (!email) {
-        return null;
-    }
-
-    const normalizedEmail =
-        email.toLowerCase();
-
-    const userNames =
-        Object.keys(USERS);
-
-    for (const name of userNames) {
-
-        if (
-            USERS[name].email.toLowerCase() ===
-            normalizedEmail
-        ) {
-            return USERS[name];
-        }
-    }
-
-    return null;
-}
-
 
 /* =========================================================
    LOGOUT
@@ -671,7 +586,7 @@ async function uploadPhoto() {
 
             uploadMessage.textContent = "";
 
-            showPage("photos");
+            showPage("home");
 
         }, 900);
 
@@ -873,6 +788,10 @@ function renderPhotos() {
         const card = document.createElement("div");
         card.className = "photo-card";
 
+        const mine =
+            currentUser &&
+            String(photo.sender_id) === String(currentUser.id);
+
         const safeName = escapeHTML(
             photo.sender_name || "Duffer & Khushi"
         );
@@ -880,9 +799,8 @@ function renderPhotos() {
         const date = formatDate(photo.created_at);
 
         card.innerHTML = `
-            ${
-                photo.url
-                    ? `
+            ${photo.url
+                ? `
                         <img
                             class="gallery-photo"
                             src="${photo.url}"
@@ -893,7 +811,7 @@ function renderPhotos() {
                             aria-label="Open photo full screen"
                         >
                     `
-                    : `
+                : `
                         <div class="empty-state">
                             <div class="empty-icon">💔</div>
                             <p>Photo unavailable</p>
@@ -910,12 +828,20 @@ function renderPhotos() {
                     ${escapeHTML(date)}
                 </div>
 
+                ${mine ? `
+                    <button
+                        type="button"
+                        class="delete-photo-button"                       
+                    >
+                        Delete memory
+                    </button>
+                ` : ""}
                 <button
                     type="button"
-                    class="delete-photo-button"
-                    data-photo-id="${photo.id}"
+                    class="download-photo-button"
+                    onclick="downloadPhoto('${photo.url}', '${photo.file_path}')"
                 >
-                    Delete memory
+                    📥 Download
                 </button>
             </div>
         `;
@@ -944,14 +870,43 @@ function renderPhotos() {
             ".delete-photo-button"
         );
 
-        deleteButton.addEventListener("click", () => {
-            deletePhoto(photo.id);
-        });
+        if (deleteButton) {
+            deleteButton.addEventListener("click", () => {
+                deletePhoto(photo.id);
+            });
+        }
 
         photosGrid.appendChild(card);
     });
 }
-
+async function downloadPhoto(url, filePath) {
+    try {
+        // Fetch the image as a blob to bypass cross-origin restrictions
+        const response = await fetch(url);
+        const blob = await response.blob();
+        
+        // Create a temporary local object URL for the blob
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        
+        // Extract a clean file name from the path
+        const fileName = filePath.split("/").pop() || "memory.jpg";
+        a.download = fileName;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+        console.error("DOWNLOAD ERROR:", error);
+        // Fallback: open in new tab if blob download fails
+        window.open(url, "_blank");
+    }
+}
 
 function openPhotoViewer(photoUrl, senderName) {
     // Close an existing viewer, if one is open.
@@ -1026,6 +981,11 @@ async function deletePhoto(photoId) {
         return;
     }
 
+    if (String(photo.sender_id) !== String(currentUser.id)) {
+        alert("You can only delete your own memories.");
+        return;
+    }
+
 
     const confirmed =
         window.confirm(
@@ -1072,6 +1032,10 @@ async function deletePhoto(photoId) {
             .eq(
                 "id",
                 photoId
+            )
+            .eq(
+                "sender_id",
+                currentUser.id
             );
 
 
@@ -1109,45 +1073,22 @@ async function deletePhoto(photoId) {
 ========================================================= */
 
 async function loadMessages() {
-
     chatLoading.classList.remove("hidden");
-
     chatMessages.innerHTML = "";
 
-
     try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from("messages")
             .select("*")
-            .order(
-                "created_at",
-                {
-                    ascending: true
-                }
-            );
+            .order("created_at", { ascending: true });
 
-
-        if (error) {
-
-            throw error;
-        }
-
+        if (error) throw error;
 
         messages = data || [];
-
         renderMessages();
 
-
     } catch (error) {
-
-        console.error(
-            "LOAD MESSAGES ERROR:",
-            error
-        );
+        console.error("LOAD MESSAGES ERROR:", error);
 
         chatMessages.innerHTML = `
             <div class="empty-state">
@@ -1158,11 +1099,9 @@ async function loadMessages() {
         `;
 
     } finally {
-
         chatLoading.classList.add("hidden");
     }
 }
-
 
 /* =========================================================
    RENDER MESSAGES
@@ -1170,11 +1109,9 @@ async function loadMessages() {
 
 
 function renderMessages() {
-
     chatMessages.innerHTML = "";
 
     if (messages.length === 0) {
-
         chatMessages.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">💌</div>
@@ -1187,56 +1124,155 @@ function renderMessages() {
     }
 
     messages.forEach(message => {
+        chatMessages.appendChild(
+            createMessageElement(message)
+        );
+    });
 
-        const mine =
-            currentUser &&
-            message.sender_id === currentUser.id;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+function createMessageElement(message) {
+    const mine =
+        currentUser &&
+        String(message.sender_id) === String(currentUser.id);
 
-        const wrapper = document.createElement("div");
+    const wrapper = document.createElement("div");
 
-        wrapper.className =
-            `chat-bubble-wrapper ${mine ? "mine" : "theirs"}`;
+    wrapper.className =
+        `chat-bubble-wrapper ${mine ? "mine" : "theirs"}`;
 
-        const senderName =
-            message.sender_name || "Duffer & Khushi";
+    wrapper.dataset.messageId = String(message.id);
 
-        const time = formatTime(message.created_at);
+    const senderName =
+        message.sender_name || "Duffer & Khushi";
 
-        wrapper.innerHTML = `
-            <span class="sender-name">
-                ${escapeHTML(senderName)}
+    const time = formatTime(message.created_at);
+
+    wrapper.innerHTML = `
+        <span class="sender-name">
+            ${escapeHTML(senderName)}
+        </span>
+
+        <div class="chat-bubble ${mine ? "mine" : "theirs"}">
+            ${escapeHTML(message.message)}
+
+            <span class="chat-time">
+                ${escapeHTML(time)}
             </span>
+        </div>
 
-            <div class="chat-bubble">
-                ${escapeHTML(message.message)}
-
-                <span class="chat-time">
-                    ${escapeHTML(time)}
-                </span>
-            </div>
-
+        ${mine ? `
             <button
                 type="button"
                 class="delete-message-button"
             >
                 🗑️ Delete
             </button>
-        `;
+        ` : ""}
+    `;
 
-        const deleteButton = wrapper.querySelector(
-            ".delete-message-button"
-        );
+    const deleteButton = wrapper.querySelector(
+        ".delete-message-button"
+    );
 
+    if (deleteButton) {
         deleteButton.addEventListener("click", () => {
             deleteMessage(message.id);
         });
+    }
 
-        chatMessages.appendChild(wrapper);
-    });
-
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return wrapper;
 }
 
+
+function addMessageToChat(message, forceScroll = false) {
+    if (!message || message.id == null) {
+        return;
+    }
+
+    // Prevent duplicate messages when Realtime and sendMessage
+    // receive the same message.
+    const alreadyExists = messages.some(
+        item => String(item.id) === String(message.id)
+    );
+
+    if (alreadyExists) {
+        if (forceScroll) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        return;
+    }
+
+    const distanceFromBottom =
+        chatMessages.scrollHeight -
+        chatMessages.scrollTop -
+        chatMessages.clientHeight;
+
+    const wasNearBottom = distanceFromBottom < 100;
+
+    messages.push(message);
+    // Remove the empty-state message when the first message arrives.
+    const emptyState = chatMessages.querySelector(".empty-state");
+
+    if (emptyState) {
+        chatMessages.innerHTML = "";
+    }
+
+    const messageElement = createMessageElement(message);
+
+    // Insert in chronological order without rebuilding existing bubbles.
+    const messageIndex = messages.findIndex(
+        item => String(item.id) === String(message.id)
+    );
+
+    let nextElement = null;
+
+    for (let i = messageIndex + 1; i < messages.length; i++) {
+        const nextId = String(messages[i].id);
+
+        nextElement = Array.from(
+            chatMessages.querySelectorAll(".chat-bubble-wrapper")
+        ).find(element =>
+            element.dataset.messageId === nextId
+        );
+
+        if (nextElement) break;
+    }
+
+    if (nextElement) {
+        chatMessages.insertBefore(messageElement, nextElement);
+    } else {
+        chatMessages.appendChild(messageElement);
+    }
+
+    // Don't interrupt someone who is reading older messages.
+    if (forceScroll || wasNearBottom) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+}
+
+
+function removeMessageFromChat(messageId) {
+    messages = messages.filter(
+        message => String(message.id) !== String(messageId)
+    );
+
+    const elements = chatMessages.querySelectorAll(
+        ".chat-bubble-wrapper"
+    );
+
+    elements.forEach(element => {
+        if (element.dataset.messageId === String(messageId)) {
+            element.remove();
+        }
+    });
+
+    // Show the empty state only if no messages remain.
+    if (messages.length === 0) {
+        renderMessages();
+    }
+}
 
 
 
@@ -1245,35 +1281,20 @@ function renderMessages() {
 ========================================================= */
 
 async function sendMessage() {
+    const text = messageInput.value.trim();
 
-    const text =
-        messageInput.value.trim();
-
-
-    if (!text) {
-        return;
-    }
-
+    if (!text) return;
+    stopTyping();
 
     if (!currentUser) {
-
-        alert(
-            "Please log in again."
-        );
-
+        alert("Please log in again.");
         return;
     }
-
 
     sendMessageButton.disabled = true;
 
-
     try {
-
-        const {
-            data,
-            error
-        } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from("messages")
             .insert({
                 message: text,
@@ -1283,35 +1304,22 @@ async function sendMessage() {
             .select()
             .single();
 
+        if (error) throw error;
 
-        if (error) {
-
-            throw error;
-        }
-
-
-        messages.push(data);
+        // Add the sent message if Realtime hasn't added it already.
+        addMessageToChat(data, true);
 
         messageInput.value = "";
 
-        renderMessages();
-
-
     } catch (error) {
-
-        console.error(
-            "SEND MESSAGE ERROR:",
-            error
-        );
+        console.error("SEND MESSAGE ERROR:", error);
 
         alert(
             "Message could not be sent. Please try again."
         );
 
     } finally {
-
         sendMessageButton.disabled = false;
-
         messageInput.focus();
     }
 }
@@ -1326,29 +1334,33 @@ async function deleteMessage(messageId) {
         return;
     }
 
+    const message = messages.find(
+        item => String(item.id) === String(messageId)
+    );
+
+    if (!message || String(message.sender_id) !== String(currentUser.id)) {
+        alert("You can only delete your own messages.");
+        return;
+    }
+
     const confirmed = window.confirm(
         "Delete this message for both of you?"
     );
 
-    if (!confirmed) {
-        return;
-    }
+    if (!confirmed) return;
 
     try {
         const { error } = await supabaseClient
             .from("messages")
             .delete()
-            .eq("id", messageId);
+            .eq("id", messageId)
+            .eq("sender_id", currentUser.id);
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        messages = messages.filter(
-            message => String(message.id) !== String(messageId)
-        );
-
-        renderMessages();
+        // Remove only this message from the current screen.
+        // Realtime will remove it from the other user's screen.
+        removeMessageFromChat(messageId);
 
     } catch (error) {
         console.error("DELETE MESSAGE ERROR:", error);
@@ -1359,90 +1371,234 @@ async function deleteMessage(messageId) {
     }
 }
 
-
 /* =========================================================
    REALTIME
 ========================================================= */
 
 function subscribeToRealtime() {
-
     if (realtimeChannel) {
-
-        supabaseClient
-            .removeChannel(
-                realtimeChannel
-            );
+        supabaseClient.removeChannel(realtimeChannel);
     }
 
+    realtimeSubscribed = false;
 
-    realtimeChannel =
-        supabaseClient
-            .channel(
-                "private-love-app"
-            )
+    ensureChatIndicators();
 
-
-            /* ---------------------------------------------
-               Messages
-            --------------------------------------------- */
-
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "messages"
-                },
-                async () => {
-
-                    /*
-                       Reload rather than manually modifying
-                       the array. This keeps both users' screens
-                       consistent.
-                    */
-
-                    if (
-                        !messagePage.classList.contains(
-                            "hidden"
-                        )
-                    ) {
-                        await loadMessages();
-                    }
+    realtimeChannel = supabaseClient
+        .channel("private-love-app", {
+            config: {
+                presence: {
+                    key: String(currentUser.id)
                 }
-            )
+            }
+        })
 
-
-            /* ---------------------------------------------
-               Photos
-            --------------------------------------------- */
-
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "photos"
-                },
-                async () => {
-
-                    if (
-                        !photosPage.classList.contains(
-                            "hidden"
-                        )
-                    ) {
-                        await loadPhotos();
-                    }
+        // New messages: add individually, without reloading history.
+        .on(
+            "postgres_changes",
+            {
+                event: "INSERT",
+                schema: "public",
+                table: "messages"
+            },
+            payload => {
+                if (!messagePage.classList.contains("hidden")) {
+                    addMessageToChat(payload.new);
                 }
-            )
+            }
+        )
+
+        // Deleted messages: remove individually.
+        .on(
+            "postgres_changes",
+            {
+                event: "DELETE",
+                schema: "public",
+                table: "messages"
+            },
+            payload => {
+                if (
+                    !messagePage.classList.contains("hidden") &&
+                    payload.old &&
+                    payload.old.id != null
+                ) {
+                    removeMessageFromChat(payload.old.id);
+                }
+            }
+        )
+
+        // Existing photo updates.
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "photos"
+            },
+            async () => {
+                if (!photosPage.classList.contains("hidden")) {
+                    await loadPhotos();
+                }
+            }
+        )
+
+        // Online status updates.
+        .on(
+            "presence",
+            { event: "sync" },
+            () => {
+                updateOnlineStatus();
+            }
+        )
+
+        // Typing events.
+        .on(
+            "broadcast",
+            { event: "typing" },
+            event => {
+                showRemoteTyping(event.payload);
+            }
+        )
+
+        .subscribe(async status => {
+            console.log("Realtime status:", status);
+
+            if (status === "SUBSCRIBED") {
+                realtimeSubscribed = true;
+
+                try {
+                    await realtimeChannel.track({
+                        user_id: currentUser.id,
+                        user_name: currentUser.name,
+                        online_at: new Date().toISOString()
+                    });
+
+                    updateOnlineStatus();
+
+                } catch (error) {
+                    console.error(
+                        "PRESENCE TRACKING ERROR:",
+                        error
+                    );
+                }
+            } else {
+                realtimeSubscribed = false;
+            }
+        });
+}
+
+function ensureChatIndicators() {
+    if (document.getElementById("chatLiveIndicators")) {
+        return;
+    }
+
+    const indicators = document.createElement("div");
+    indicators.id = "chatLiveIndicators";
+
+    indicators.innerHTML = `
+        <div id="chatOnlineStatus" class="chat-online-status">
+            Checking online status...
+        </div>
+        <div id="chatTypingStatus" class="chat-typing-status hidden">
+        </div>
+    `;
+
+    if (chatMessages && chatMessages.parentElement) {
+        chatMessages.parentElement.insertBefore(
+            indicators,
+            chatMessages
+        );
+    }
+}
+
+function updateOnlineStatus() {
+    const status = document.getElementById("chatOnlineStatus");
+
+    if (!status || !currentUser || !realtimeChannel) {
+        return;
+    }
+
+    const presence = realtimeChannel.presenceState();
+
+    const people = Object.values(presence).flat();
+
+    const otherUser = people.find(person =>
+        String(person.user_id) !== String(currentUser.id)
+    );
+
+    const otherName = otherUser?.user_name ||
+        (currentUser.name === "Duffer" ? "Khushi" : "Duffer");
+    const contactName = document.getElementById("chatContactName");
+    if (contactName) contactName.textContent = otherName;
+
+    status.textContent = otherUser
+        ? `🟢 ${otherName} is online`
+        : `⚪ ${otherName} is offline`;
+
+    status.classList.toggle("is-online", Boolean(otherUser));
+}
 
 
-            .subscribe(status => {
+function broadcastTyping(isTyping) {
+    if (!realtimeChannel || !realtimeSubscribed || !currentUser) {
+        return;
+    }
 
-                console.log(
-                    "Realtime status:",
-                    status
-                );
-            });
+    realtimeChannel.send({
+        type: "broadcast",
+        event: "typing",
+        payload: {
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            is_typing: isTyping
+        }
+    });
+}
+
+
+function stopTyping() {
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
+    }
+
+    broadcastTyping(false);
+}
+
+
+function showRemoteTyping(payload) {
+    if (!currentUser || !payload) {
+        return;
+    }
+
+    if (String(payload.user_id) === String(currentUser.id)) {
+        return;
+    }
+
+    const typingStatus = document.getElementById("chatTypingStatus");
+
+    if (!typingStatus) {
+        return;
+    }
+
+    if (remoteTypingTimeout) {
+        clearTimeout(remoteTypingTimeout);
+        remoteTypingTimeout = null;
+    }
+
+    if (payload.is_typing) {
+        typingStatus.textContent =
+            `${payload.user_name || "Your person"} is typing… 💗`;
+
+        typingStatus.classList.remove("hidden");
+
+        remoteTypingTimeout = setTimeout(() => {
+            typingStatus.classList.add("hidden");
+        }, 2500);
+
+    } else {
+        typingStatus.classList.add("hidden");
+    }
 }
 
 
@@ -1470,11 +1626,9 @@ function formatTime(timestamp) {
 
 
 function formatDate(timestamp) {
-
     if (!timestamp) {
         return "";
     }
-
 
     return new Date(
         timestamp
@@ -1483,7 +1637,9 @@ function formatDate(timestamp) {
         {
             day: "numeric",
             month: "short",
-            year: "numeric"
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit"
         }
     );
 }
@@ -1630,9 +1786,46 @@ messageInput.addEventListener(
 );
 
 
+messageInput.addEventListener("input", () => {
+    if (messagePage.classList.contains("hidden")) {
+        return;
+    }
+
+    if (messageInput.value.trim()) {
+        broadcastTyping(true);
+
+        if (typingTimeout) {
+            clearTimeout(typingTimeout);
+        }
+
+        typingTimeout = setTimeout(() => {
+            broadcastTyping(false);
+            typingTimeout = null;
+        }, 1800);
+
+    } else {
+        stopTyping();
+    }
+});
+
+
 /* =========================================================
    INITIALIZATION
 ========================================================= */
 
 loginScreen.classList.remove("hidden");
 appScreen.classList.add("hidden");
+
+// Re-fetch messages when the device reconnects to the internet
+window.addEventListener("online", () => {
+    console.log("Connection restored. Fetching latest messages...");
+    loadMessages();
+});
+
+// Re-fetch messages when the user returns to the app tab or wakes up their phone
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        console.log("App active again. Checking for missed messages...");
+        loadMessages();
+    }
+});

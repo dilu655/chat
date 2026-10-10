@@ -1,5 +1,5 @@
 /* =========================================================
-   RESET
+   RESET & GLOBAL
 ========================================================= */
 
 * {
@@ -39,11 +39,12 @@ button {
 
 
 /* =========================================================
-   LOGIN SCREEN
+   LOGIN
 ========================================================= */
 
 .login-screen {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -294,7 +295,7 @@ button {
 
 
 /* =========================================================
-   MAIN APP
+   MAIN APP & HEADER
 ========================================================= */
 
 #appScreen {
@@ -303,11 +304,6 @@ button {
         linear-gradient(rgba(255, 247, 250, 0.94), rgba(255, 247, 250, 0.94)),
         radial-gradient(circle at top right, #ffd9e6, transparent 35%);
 }
-
-
-/* =========================================================
-   HEADER
-========================================================= */
 
 .app-header {
     width: 100%;
@@ -379,7 +375,7 @@ button {
 
 
 /* =========================================================
-   PAGES
+   GENERAL PAGES
 ========================================================= */
 
 .page {
@@ -464,10 +460,7 @@ button {
     border: 1px solid #f0dfe5;
     border-radius: 20px;
     box-shadow: 0 8px 25px rgba(111, 45, 67, 0.07);
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.15s ease,
-        border-color 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .home-card:hover {
@@ -575,7 +568,7 @@ button {
 
 
 /* =========================================================
-   FILE PICKER
+   UPLOAD SCREEN
 ========================================================= */
 
 .file-input {
@@ -646,7 +639,7 @@ button {
 
 
 /* =========================================================
-   PHOTOS
+   PHOTO GALLERY
 ========================================================= */
 
 .photos-grid {
@@ -704,8 +697,27 @@ button {
 .delete-photo-button:active {
     transform: scale(0.95);
 }
+.download-photo-button {
+    width: 100%;
+    min-height: 35px;
+    padding: 7px;
+    margin-top: 6px;
+    border-radius: 10px;
+    background: #f0f4ff;
+    color: #3b62c4;
+    font-size: 11px;
+    font-weight: 700;
+    transition: transform 0.15s ease;
+}
 
-/* Full-screen photo viewer */
+.download-photo-button:active {
+    transform: scale(0.95);
+}
+
+/* =========================================================
+   FULL-SCREEN PHOTO VIEWER
+========================================================= */
+
 .photo-viewer-overlay {
     position: fixed;
     inset: 0;
@@ -716,7 +728,6 @@ button {
     justify-content: center;
     gap: 12px;
     padding: 60px 12px 24px;
-    box-sizing: border-box;
     background: rgba(15, 8, 15, 0.96);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -726,6 +737,7 @@ button {
     display: block;
     max-width: 100%;
     max-height: calc(100vh - 130px);
+    max-height: calc(100dvh - 130px);
     width: auto;
     height: auto;
     object-fit: contain;
@@ -746,7 +758,6 @@ button {
     font-size: 34px;
     line-height: 1;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
 }
 
 .photo-viewer-close:active {
@@ -802,144 +813,7 @@ button {
 
 
 /* =========================================================
-   CHAT
-========================================================= */
-
-.chat-messages {
-    min-height: 55vh;
-    max-height: 62vh;
-    overflow-y: auto;
-    padding: 15px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    background:
-        radial-gradient(circle at top left, #fff2f6, transparent 35%),
-        #fffafb;
-    border: 1px solid #f0dfe5;
-    border-radius: 20px;
-    scroll-behavior: smooth;
-}
-
-.chat-bubble-wrapper {
-    max-width: 82%;
-    display: flex;
-    flex-direction: column;
-}
-
-.chat-bubble-wrapper.mine {
-    align-self: flex-end;
-    align-items: flex-end;
-}
-
-.chat-bubble-wrapper.theirs {
-    align-self: flex-start;
-    align-items: flex-start;
-}
-
-.sender-name {
-    margin: 0 8px 4px;
-    color: #9a7180;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.chat-bubble {
-    padding: 11px 14px;
-    border-radius: 17px;
-    word-break: break-word;
-    line-height: 1.45;
-    font-size: 14px;
-}
-
-.chat-bubble.mine {
-    background: linear-gradient(135deg, #ff6b96, #ff4e82);
-    color: white;
-    border-bottom-right-radius: 5px;
-    box-shadow: 0 5px 12px rgba(255, 78, 130, 0.14);
-}
-
-.chat-bubble.theirs {
-    background: white;
-    color: #392830;
-    border: 1px solid #f0dfe5;
-    border-bottom-left-radius: 5px;
-}
-
-.chat-time {
-    display: block;
-    font-size: 9px;
-    opacity: 0.68;
-    margin-top: 5px;
-    text-align: right;
-}
-
-.chat-input-area {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-    align-items: center;
-}
-
-.chat-input-area input {
-    flex: 1;
-    min-width: 0;
-    min-height: 50px;
-    padding: 13px 15px;
-    border: 1px solid #ead6de;
-    border-radius: 16px;
-    outline: none;
-    background: white;
-    font-size: 15px;
-}
-
-.chat-input-area input:focus {
-    border-color: #ff7da1;
-    box-shadow: 0 0 0 4px rgba(255, 92, 138, 0.08);
-}
-
-.send-button {
-    width: 50px;
-    height: 50px;
-    flex-shrink: 0;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #ff5c8a, #ff3f76);
-    color: white;
-    font-size: 20px;
-    box-shadow: 0 7px 16px rgba(255, 63, 118, 0.2);
-    transition: transform 0.15s ease;
-}
-
-.send-button:active {
-    transform: scale(0.91);
-}
-
-.chat-hint {
-    margin: 7px 5px 0;
-    text-align: right;
-    color: #b0929d;
-    font-size: 10px;
-}
-
-.delete-message-button {
-    display: block;
-    margin: 5px 0 12px auto;
-    padding: 6px 12px;
-    border: none;
-    border-radius: 20px;
-    background: #fff0f3;
-    color: #c43c60;
-    font-size: 12px;
-    cursor: pointer;
-    transition: transform 0.15s ease;
-}
-
-.delete-message-button:active {
-    transform: scale(0.94);
-}
-
-/* =========================================================
-   LOADING
+   CHAT LOADING
 ========================================================= */
 
 .loading-state {
@@ -970,17 +844,338 @@ button {
 
 
 /* =========================================================
-   MOBILE
+   CHAT INDICATORS
+========================================================= */
+
+#chatLiveIndicators {
+    padding: 5px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12px;
+    min-width: 0;
+}
+
+.chat-online-status {
+    color: #888;
+    font-size: 12px;
+}
+
+.chat-online-status.is-online {
+    color: #22a06b;
+}
+
+.chat-typing-status {
+    color: #d95783;
+    font-size: 12px;
+    min-height: 0;
+}
+
+.chat-typing-status.hidden {
+    display: none;
+}
+
+/* Chat header with contact name */
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+    padding: 8px 14px;
+    background: #fff7fa;
+    border-bottom: 1px solid #f4dce5;
+}
+
+.chat-header .back-button {
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.chat-contact-name {
+    min-width: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: #9b4166;
+}
+
+
+
+/* =========================================================
+   WHATSAPP-STYLE FULL-SCREEN CHAT
+========================================================= */
+
+/*
+   The chat overlays the regular app pages.
+   This removes the normal page padding and page scrolling.
+*/
+
+#messagePage {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+
+    margin: 0;
+    padding: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+
+    overflow: hidden;
+    overscroll-behavior: none;
+
+    background: #fff7fa;
+}
+
+/* Compact chat top bar */
+#messagePage>.back-button {
+    flex: 0 0 auto;
+    align-self: stretch;
+
+    min-height: 58px;
+    margin: 0;
+    padding: 8px 14px;
+
+    border: 0;
+    border-bottom: 1px solid #f1dfe6;
+    border-radius: 0;
+
+    background: #fff;
+    color: #7c5865;
+
+    justify-content: flex-start;
+}
+
+/* Remove the old heading and description */
+#messagePage>.page-title-row,
+#messagePage>.page-description {
+    display: none !important;
+}
+
+/* Loading UI should not reserve space when hidden */
+#messagePage>#chatLoading {
+    flex: 0 0 auto;
+}
+
+/* Online and typing status area */
+#messagePage>#chatLiveIndicators {
+    flex: 0 0 auto;
+    padding: 4px 14px;
+    background: #fff;
+}
+
+/* Message history gets all remaining height */
+#messagePage>#chatMessages {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    width: 100%;
+
+    margin: 0;
+    padding: 12px 10px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+
+    background:
+        radial-gradient(circle at top left, #fff2f6, transparent 35%),
+        #fffafb;
+
+    border: 0;
+    border-radius: 0;
+
+    scroll-behavior: auto;
+    overflow-anchor: auto;
+}
+
+/* Individual messages */
+#messagePage .chat-bubble-wrapper {
+    max-width: 88%;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#messagePage .chat-bubble-wrapper.mine {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+#messagePage .chat-bubble-wrapper.theirs {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+#messagePage .sender-name {
+    margin: 0 8px 4px;
+    color: #9a7180;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+#messagePage .chat-bubble {
+    padding: 10px 13px;
+    border-radius: 17px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+    font-size: 14px;
+}
+
+#messagePage .chat-bubble.mine {
+    background: linear-gradient(135deg, #ff6b96, #ff4e82);
+    color: white;
+    border-bottom-right-radius: 5px;
+    box-shadow: 0 5px 12px rgba(255, 78, 130, 0.14);
+}
+
+#messagePage .chat-bubble.theirs {
+    background: white;
+    color: #392830;
+    border: 1px solid #f0dfe5;
+    border-bottom-left-radius: 5px;
+}
+
+#messagePage .chat-time {
+    display: block;
+    font-size: 9px;
+    opacity: 0.75;
+    margin-top: 5px;
+    text-align: right;
+}
+
+/* Individual message delete button */
+#messagePage .delete-message-button {
+    display: block;
+    min-height: 30px;
+    margin: 4px 0 7px auto;
+    padding: 5px 10px;
+
+    border: none;
+    border-radius: 20px;
+
+    background: #fff0f3;
+    color: #c43c60;
+
+    font-size: 11px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+#messagePage .delete-message-button:active {
+    transform: scale(0.94);
+}
+
+/* Pinned input row */
+#messagePage>.chat-input-area {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    margin: 0;
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+
+    background: #fff;
+    border-top: 1px solid #f0dfe5;
+}
+
+/* Comfortable Android typing field */
+#messagePage .chat-input-area input {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    min-height: 46px;
+
+    padding: 11px 14px;
+    border: 1px solid #ead6de;
+    border-radius: 24px;
+    outline: none;
+
+    background: #fffafb;
+    color: #33242a;
+    font-size: 16px;
+}
+
+#messagePage .chat-input-area input:focus {
+    border-color: #ff7da1;
+    box-shadow: 0 0 0 3px rgba(255, 92, 138, 0.08);
+}
+
+#messagePage .chat-input-area input::placeholder {
+    color: #ad929c;
+}
+
+/* Send button */
+#messagePage .send-button {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    flex: 0 0 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff5c8a, #ff3f76);
+    color: white;
+    font-size: 20px;
+
+    box-shadow: 0 4px 12px rgba(255, 63, 118, 0.2);
+    transition: transform 0.15s ease;
+}
+
+#messagePage .send-button:active {
+    transform: scale(0.91);
+}
+
+#messagePage .send-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Remove the old hint to save space */
+#messagePage>.chat-hint {
+    display: none !important;
+}
+
+/* Empty chat state */
+#messagePage .empty-state {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: auto 0;
+    padding: 30px 16px;
+    background: transparent;
+    border: 0;
+}
+
+
+/* =========================================================
+   MOBILE & ANDROID RESPONSIVENESS
 ========================================================= */
 
 @media (max-width: 500px) {
-
     .login-screen {
         padding: 0;
     }
 
     .login-box {
         min-height: 100vh;
+        min-height: 100dvh;
         max-width: none;
         border-radius: 0;
         border: none;
@@ -1010,13 +1205,27 @@ button {
         font-size: 24px;
     }
 
-    .chat-messages {
-        min-height: 54vh;
-        max-height: 59vh;
+    #messagePage {
+        padding: 0;
     }
 
-    .chat-bubble-wrapper {
-        max-width: 88%;
+    #messagePage>.back-button {
+        min-height: 54px;
+        padding-left: 12px;
+    }
+
+    #messagePage>#chatMessages {
+        padding: 10px 9px;
+        gap: 8px;
+    }
+
+    #messagePage .chat-bubble-wrapper {
+        max-width: 90%;
+    }
+
+    #messagePage>.chat-input-area {
+        padding-left: 8px;
+        padding-right: 8px;
     }
 }
 
@@ -1026,7 +1235,6 @@ button {
 ========================================================= */
 
 @media (max-width: 350px) {
-
     .login-box {
         padding-left: 16px;
         padding-right: 16px;
@@ -1046,5 +1254,15 @@ button {
 
     .card-content p {
         font-size: 11px;
+    }
+
+    #messagePage .chat-bubble {
+        padding: 9px 11px;
+        font-size: 13px;
+    }
+
+    #messagePage .chat-input-area input {
+        padding-left: 12px;
+        padding-right: 12px;
     }
 }

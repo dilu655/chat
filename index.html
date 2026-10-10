@@ -61,7 +61,7 @@
             <div class="password-wrapper">
 
                 <input type="password" id="passwordInput" class="login-input" placeholder="Enter your password"
-                    autocomplete="off">
+                    autocomplete="new-password">
 
                 <button type="button" id="togglePasswordButton" class="password-toggle" aria-label="Show password">
                     👁️
@@ -315,10 +315,14 @@
 
         <main id="messagePage" class="page hidden">
 
-            <button class="back-button" data-page="home">
-                <span>←</span>
-                <span>Back</span>
-            </button>
+            <div class="chat-header">
+                <button class="back-button" data-page="home">
+                    <span>←</span>
+                    <span>Back</span>
+                </button>
+
+                <div id="chatContactName" class="chat-contact-name"></div>
+            </div>
 
             <div class="page-title-row">
 
