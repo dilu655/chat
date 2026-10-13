@@ -1,6 +1,3 @@
-console.log("APP.JS LOADED");
-
-
 /* =========================================================
    SUPABASE CONFIGURATION
 ========================================================= */
@@ -17,7 +14,7 @@ const supabaseClient = window.supabase.createClient(
     {
         auth: {
             persistSession: false,
-            autoRefreshToken: false,
+            autoRefreshToken: true,
             detectSessionInUrl: false
         }
     }
@@ -61,6 +58,9 @@ let currentUser = null;
 let selectedPhoto = null;
 
 let messages = [];
+
+const MESSAGE_PAGE_SIZE = 200;
+let hasMoreOlder = true;
 
 let photos = [];
 
@@ -187,34 +187,22 @@ async function login() {
     loginMessage.textContent = "";
 
     if (!selectedName) {
-
-        loginMessage.textContent =
-            "Please choose your name.";
-
+        loginMessage.textContent = "Please choose your name.";
         loginMessage.style.color = "#d44768";
-
         return;
     }
 
     if (!password) {
-
-        loginMessage.textContent =
-            "Please enter your password.";
-
+        loginMessage.textContent = "Please enter your password.";
         loginMessage.style.color = "#d44768";
-
         return;
     }
 
     const selectedUser = USERS[selectedName];
 
     if (!selectedUser) {
-
-        loginMessage.textContent =
-            "User configuration error.";
-
+        loginMessage.textContent = "User configuration error.";
         loginMessage.style.color = "#d44768";
-
         return;
     }
 
@@ -225,20 +213,35 @@ async function login() {
         <span>💗</span>
     `;
 
+    let data = null;
+    let error = null;
 
-    const { data, error } =
-        await supabaseClient.auth.signInWithPassword({
-            email: selectedUser.email,
-            password: password
-        });
+    try {
+        const result =
+            await supabaseClient.auth.signInWithPassword({
+                email: selectedUser.email,
+                password: password
+            });
 
+        data = result.data;
+        error = result.error;
+
+    } catch (networkError) {
+        error = networkError;
+    }
 
     if (error) {
 
         console.error("LOGIN ERROR:", error);
 
-        loginMessage.textContent =
-            "The name or password is incorrect.";
+        const looksLikeNetworkProblem =
+            !navigator.onLine ||
+            !error.status ||
+            String(error.message).toLowerCase().includes("fetch");
+
+        loginMessage.textContent = looksLikeNetworkProblem
+            ? "Could not connect. Please check your internet and try again."
+            : "The name or password is incorrect.";
 
         loginMessage.style.color = "#d44768";
 
@@ -252,8 +255,7 @@ async function login() {
         return;
     }
 
-
-    if (data.session && data.user) {
+    if (data && data.session && data.user) {
 
         currentUser = {
             id: data.user.id,
@@ -261,12 +263,10 @@ async function login() {
             email: selectedUser.email
         };
 
-
         loginScreen.classList.add("hidden");
         appScreen.classList.remove("hidden");
 
         passwordInput.value = "";
-
         loginMessage.textContent = "";
 
         currentUserDisplay.textContent =
@@ -276,7 +276,6 @@ async function login() {
 
         showPage("home");
     }
-
 
     loginButton.disabled = false;
 
@@ -316,6 +315,7 @@ async function logout() {
 
     usernameInput.value = "";
     passwordInput.value = "";
+    if (passwordVisible) togglePassword();
 
     loginMessage.textContent = "";
 
@@ -329,11 +329,18 @@ async function logout() {
    PASSWORD VISIBILITY
 ========================================================= */
 
+let passwordVisible = false;
+
 function togglePassword() {
 
-    if (passwordInput.type === "password") {
+    passwordVisible = !passwordVisible;
 
-        passwordInput.type = "text";
+    if (passwordVisible) {
+
+        passwordInput.style.setProperty(
+            "-webkit-text-security",
+            "none"
+        );
 
         togglePasswordButton.textContent = "🙈";
 
@@ -344,7 +351,10 @@ function togglePassword() {
 
     } else {
 
-        passwordInput.type = "password";
+        passwordInput.style.setProperty(
+            "-webkit-text-security",
+            "disc"
+        );
 
         togglePasswordButton.textContent = "👁️";
 
@@ -354,7 +364,6 @@ function togglePassword() {
         );
     }
 }
-
 
 /* =========================================================
    PHOTO SELECTION
@@ -1080,11 +1089,13 @@ async function loadMessages() {
         const { data, error } = await supabaseClient
             .from("messages")
             .select("*")
-            .order("created_at", { ascending: true });
+            .order("created_at", { ascending: false })
+            .limit(MESSAGE_PAGE_SIZE);
 
         if (error) throw error;
 
-        messages = data || [];
+        messages = (data || []).reverse();
+        hasMoreOlder = (data || []).length === MESSAGE_PAGE_SIZE;
         renderMessages();
 
     } catch (error) {
@@ -1101,6 +1112,43 @@ async function loadMessages() {
     } finally {
         chatLoading.classList.add("hidden");
     }
+}
+
+
+
+async function loadOlderMessages() {
+    if (messages.length === 0) return;
+
+    const oldest = messages[0].created_at;
+
+    const { data, error } = await supabaseClient
+        .from("messages")
+        .select("*")
+        .lt("created_at", oldest)
+        .order("created_at", { ascending: false })
+        .limit(MESSAGE_PAGE_SIZE);
+
+    if (error) {
+        alert("Could not load older messages.");
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        hasMoreOlder = false;
+        const btn = chatMessages.querySelector(".load-older-button");
+        if (btn) btn.remove();
+        return;
+    }
+
+    hasMoreOlder = data.length === MESSAGE_PAGE_SIZE;
+
+    const oldHeight = chatMessages.scrollHeight;
+
+    messages = data.reverse().concat(messages);
+    renderMessages();
+
+    // stay at the same place instead of jumping to the bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight - oldHeight;
 }
 
 /* =========================================================
@@ -1122,7 +1170,14 @@ function renderMessages() {
 
         return;
     }
-
+    if (hasMoreOlder) {
+        const olderButton = document.createElement("button");
+        olderButton.type = "button";
+        olderButton.className = "load-older-button";
+        olderButton.textContent = "⬆ Load older messages";
+        olderButton.addEventListener("click", loadOlderMessages);
+        chatMessages.appendChild(olderButton);
+    }
     messages.forEach(message => {
         chatMessages.appendChild(
             createMessageElement(message)

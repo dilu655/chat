@@ -1163,6 +1163,7 @@ button {
     background: transparent;
     border: 0;
 }
+
 /* =========================================================
    MOBILE & ANDROID RESPONSIVENESS
 ========================================================= */
@@ -1273,4 +1274,15 @@ button {
     bottom: auto;
     height: var(--chat-viewport-height, 100dvh);
     min-height: 0;
+}
+
+.load-older-button {
+    align-self: center;
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: #fff;
+    color: #9b4166;
+    border: 1px solid #f1dfe6;
+    font-size: 13px;
 }
