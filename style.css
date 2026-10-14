@@ -1286,3 +1286,203 @@ button {
     border: 1px solid #f1dfe6;
     font-size: 13px;
 }
+
+.unread-badge {
+    display: inline-block;
+    min-width: 22px;
+    padding: 2px 7px;
+    margin-left: 6px;
+    border-radius: 12px;
+    background: #ff5c8a;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.unread-divider {
+    align-self: stretch;
+    flex: 0 0 auto;
+    text-align: center;
+    padding: 5px 12px;
+    margin: 6px 0;
+    border-radius: 14px;
+    background: #ffe3ec;
+    color: #9b4166;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#toastContainer {
+    position: fixed;
+    top: 14px;
+    left: 0;
+    right: 0;
+    z-index: 5000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast {
+    max-width: 90%;
+    padding: 11px 18px;
+    border-radius: 16px;
+    background: #d44768;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(212, 71, 104, 0.35);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.toast.success {
+    background: #2d9b68;
+}
+
+.toast-hide {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(45, 32, 37, 0.45);
+}
+
+.confirm-box {
+    width: 100%;
+    max-width: 320px;
+    padding: 22px 20px 16px;
+    border-radius: 22px;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.confirm-box p {
+    margin: 0 0 18px;
+    font-size: 16px;
+    color: #2d2025;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.confirm-buttons button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.confirm-cancel {
+    background: #f4e8ed;
+    color: #7c5865;
+}
+
+.confirm-ok {
+    background: #d44768;
+    color: #fff;
+}
+
+.photo-viewer-overlay {
+    touch-action: none;
+    overflow: hidden;
+}
+
+.photo-viewer-image {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    will-change: transform;
+}
+
+.photo-viewer-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    font-size: 32px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.photo-viewer-arrow.prev {
+    left: 8px;
+}
+
+.photo-viewer-arrow.next {
+    right: 8px;
+}
+
+.photo-viewer-counter {
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 14px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.photo-viewer-hint {
+    position: absolute;
+    top: 68px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 7px 14px;
+    border-radius: 16px;
+    background: rgba(255, 92, 138, 0.9);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity 0.6s;
+}
+
+.photo-viewer-hint.fade-out {
+    opacity: 0;
+}
+
+.date-divider {
+    align-self: stretch;
+    flex: 0 0 auto;
+    text-align: center;
+    margin: 8px 0 2px;
+}
+
+.date-divider span {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #f1dfe6;
+    color: #9b4166;
+    font-size: 12px;
+    font-weight: 700;
+}

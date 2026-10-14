@@ -58,7 +58,8 @@ let currentUser = null;
 let selectedPhoto = null;
 
 let messages = [];
-
+let unreadCount = 0;
+let chatOpenLastRead = null;
 const MESSAGE_PAGE_SIZE = 200;
 let hasMoreOlder = true;
 
@@ -128,6 +129,8 @@ function showPage(page) {
 
     if (page !== "message") {
         stopTyping();
+        unreadCount = 0;          // new
+        updateUnreadBadge();      // new
 
         const typingStatus =
             document.getElementById("chatTypingStatus");
@@ -163,8 +166,8 @@ function showPage(page) {
     if (page === "message") {
 
         messagePage.classList.remove("hidden");
-
-        loadMessages();
+        chatOpenLastRead = getLastReadTime();   // remember BEFORE it gets overwritten
+        loadMessages().then(markChatRead);
 
         setTimeout(() => {
             messageInput.focus();
@@ -273,7 +276,7 @@ async function login() {
             `Logged in as ${currentUser.name} ❤️`;
 
         subscribeToRealtime();
-
+        refreshUnreadCount();
         showPage("home");
     }
 
@@ -308,6 +311,8 @@ async function logout() {
     currentUser = null;
 
     messages = [];
+    unreadCount = 0;
+    updateUnreadBadge();
     photos = [];
 
     appScreen.classList.add("hidden");
@@ -859,10 +864,7 @@ function renderPhotos() {
 
         if (photoImage) {
             const openViewer = () => {
-                openPhotoViewer(
-                    photo.url,
-                    photo.sender_name || "Duffer & Khushi"
-                );
+                openPhotoViewer(photo.id);
             };
 
             photoImage.addEventListener("click", openViewer);
@@ -917,15 +919,29 @@ async function downloadPhoto(url, filePath) {
     }
 }
 
-function openPhotoViewer(photoUrl, senderName) {
-    // Close an existing viewer, if one is open.
-    const existingViewer = document.querySelector(
-        ".photo-viewer-overlay"
-    );
+function openPhotoViewer(photoId) {
+
+    const existingViewer = document.querySelector(".photo-viewer-overlay");
 
     if (existingViewer) {
-        existingViewer.remove();
+        if (existingViewer.closeViewer) {
+            existingViewer.closeViewer();
+        } else {
+            existingViewer.remove();
+        }
     }
+
+    const viewerPhotos = photos.filter(item => item.url);
+    let index = viewerPhotos.findIndex(item => item.id === photoId);
+
+    if (index === -1) return;
+
+    let scale = 1;
+    let translateX = 0;
+    let translateY = 0;
+    let hintTimer = null;
+
+    /* ---------- Build the viewer ---------- */
 
     const overlay = document.createElement("div");
     overlay.className = "photo-viewer-overlay";
@@ -936,33 +952,253 @@ function openPhotoViewer(photoUrl, senderName) {
     closeButton.textContent = "×";
     closeButton.setAttribute("aria-label", "Close photo");
 
+    const counter = document.createElement("div");
+    counter.className = "photo-viewer-counter";
+
+    const prevButton = document.createElement("button");
+    prevButton.type = "button";
+    prevButton.className = "photo-viewer-arrow prev";
+    prevButton.textContent = "‹";
+    prevButton.setAttribute("aria-label", "Previous photo");
+
+    const nextButton = document.createElement("button");
+    nextButton.type = "button";
+    nextButton.className = "photo-viewer-arrow next";
+    nextButton.textContent = "›";
+    nextButton.setAttribute("aria-label", "Next photo");
+
     const image = document.createElement("img");
     image.className = "photo-viewer-image";
-    image.src = photoUrl;
-    image.alt = "Full photo shared by " + senderName;
+    image.draggable = false;
 
     const caption = document.createElement("div");
     caption.className = "photo-viewer-caption";
-    caption.textContent = "❤️ Shared by " + senderName;
+
+    const hint = document.createElement("div");
+    hint.className = "photo-viewer-hint";
+    hint.textContent = "👈 Swipe left or right to change photo 👉";
 
     overlay.appendChild(closeButton);
+    overlay.appendChild(counter);
+    overlay.appendChild(prevButton);
+    overlay.appendChild(nextButton);
     overlay.appendChild(image);
     overlay.appendChild(caption);
 
-    document.body.appendChild(overlay);
-
-    function closeViewer() {
-        overlay.remove();
-        document.removeEventListener("keydown", handleKeydown);
+    if (viewerPhotos.length > 1) {
+        overlay.appendChild(hint);
+        hintTimer = setTimeout(() => {
+            hint.classList.add("fade-out");
+        }, 4000);
     }
 
-    function handleKeydown(event) {
-        if (event.key === "Escape") {
-            closeViewer();
+    document.body.appendChild(overlay);
+
+    /* ---------- Zoom and move ---------- */
+
+    function applyTransform(animate) {
+        if (scale > 1) {
+            const maxX = (image.clientWidth * (scale - 1)) / 2;
+            const maxY = (image.clientHeight * (scale - 1)) / 2;
+
+            translateX = Math.max(-maxX, Math.min(maxX, translateX));
+            translateY = Math.max(-maxY, Math.min(maxY, translateY));
+        } else {
+            translateX = 0;
+            translateY = 0;
+        }
+
+        image.style.transition = animate ? "transform 0.2s ease" : "none";
+        image.style.transform =
+            `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    }
+
+    function resetZoom() {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        applyTransform(false);
+    }
+
+    /* ---------- Show a photo ---------- */
+
+    function showPhoto(newIndex) {
+        index = newIndex;
+
+        const item = viewerPhotos[index];
+        const name = item.sender_name || "Duffer & Khushi";
+
+        image.src = item.url;
+        image.alt = "Full photo shared by " + name;
+        caption.textContent = "❤️ Shared by " + name;
+
+        counter.textContent = `${index + 1} / ${viewerPhotos.length}`;
+        counter.classList.toggle("hidden", viewerPhotos.length < 2);
+
+        prevButton.classList.toggle("hidden", index === 0);
+        nextButton.classList.toggle("hidden", index === viewerPhotos.length - 1);
+
+        resetZoom();
+    }
+
+    function hideHint() {
+        hint.classList.add("fade-out");
+    }
+
+    function goNext() {
+        if (index >= viewerPhotos.length - 1) return false;
+        showPhoto(index + 1);
+        hideHint();
+        return true;
+    }
+
+    function goPrev() {
+        if (index <= 0) return false;
+        showPhoto(index - 1);
+        hideHint();
+        return true;
+    }
+
+    showPhoto(index);
+
+    /* ---------- Touch: swipe, pinch, double-tap ---------- */
+
+    let mode = "";
+    let startX = 0;
+    let startY = 0;
+    let originX = 0;
+    let originY = 0;
+    let pinchStartDistance = 0;
+    let pinchStartScale = 1;
+    let lastTap = 0;
+
+    function fingerDistance(touches) {
+        return Math.hypot(
+            touches[0].clientX - touches[1].clientX,
+            touches[0].clientY - touches[1].clientY
+        );
+    }
+
+    function handleTap() {
+        const now = Date.now();
+
+        if (now - lastTap < 300) {
+            lastTap = 0;
+            translateX = 0;
+            translateY = 0;
+            scale = scale > 1 ? 1 : 2.5;
+            applyTransform(true);
+        } else {
+            lastTap = now;
         }
     }
 
+    overlay.addEventListener("touchstart", event => {
+        if (event.target.closest("button")) return;
+
+        if (event.touches.length === 2) {
+            mode = "pinch";
+            pinchStartDistance = fingerDistance(event.touches);
+            pinchStartScale = scale;
+
+        } else if (event.touches.length === 1) {
+            const touch = event.touches[0];
+
+            startX = touch.clientX;
+            startY = touch.clientY;
+            originX = translateX;
+            originY = translateY;
+
+            mode = scale > 1 ? "pan" : "swipe";
+        }
+    }, { passive: true });
+
+    overlay.addEventListener("touchmove", event => {
+        if (mode === "pinch" && event.touches.length === 2) {
+            scale = Math.min(
+                4,
+                Math.max(1, pinchStartScale *
+                    fingerDistance(event.touches) / pinchStartDistance)
+            );
+            applyTransform(false);
+
+        } else if (mode === "pan" && event.touches.length === 1) {
+            const touch = event.touches[0];
+
+            translateX = originX + (touch.clientX - startX);
+            translateY = originY + (touch.clientY - startY);
+            applyTransform(false);
+
+        } else if (mode === "swipe" && event.touches.length === 1) {
+            // the photo follows your finger a little
+            const dx = event.touches[0].clientX - startX;
+
+            image.style.transition = "none";
+            image.style.transform = `translateX(${dx}px)`;
+        }
+    }, { passive: true });
+
+    overlay.addEventListener("touchend", event => {
+        if (!mode) return;
+
+        if (mode === "pinch") {
+            if (event.touches.length < 2) {
+                if (scale < 1.05) {
+                    scale = 1;
+                }
+                applyTransform(true);
+                mode = "";
+            }
+            return;
+        }
+
+        if (event.touches.length > 0) return;
+
+        const touch = event.changedTouches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10;
+
+        if (isTap) {
+            handleTap();
+            applyTransform(true);
+
+        } else if (
+            mode === "swipe" &&
+            Math.abs(dx) > 60 &&
+            Math.abs(dx) > Math.abs(dy)
+        ) {
+            const changed = dx < 0 ? goNext() : goPrev();
+
+            // first or last photo: slide back to the middle
+            if (!changed) applyTransform(true);
+
+        } else {
+            applyTransform(true);
+        }
+
+        mode = "";
+    }, { passive: true });
+
+    /* ---------- Buttons and keyboard ---------- */
+
+    function closeViewer() {
+        clearTimeout(hintTimer);
+        document.removeEventListener("keydown", handleKeydown);
+        overlay.remove();
+    }
+
+    function handleKeydown(event) {
+        if (event.key === "Escape") closeViewer();
+        if (event.key === "ArrowRight") goNext();
+        if (event.key === "ArrowLeft") goPrev();
+    }
+
+    overlay.closeViewer = closeViewer;
+
     closeButton.addEventListener("click", closeViewer);
+    nextButton.addEventListener("click", goNext);
+    prevButton.addEventListener("click", goPrev);
 
     overlay.addEventListener("click", event => {
         if (event.target === overlay) {
@@ -991,13 +1227,13 @@ async function deletePhoto(photoId) {
     }
 
     if (String(photo.sender_id) !== String(currentUser.id)) {
-        alert("You can only delete your own memories.");
+        showToast("You can only delete your own memories.");
         return;
     }
 
 
     const confirmed =
-        window.confirm(
+        await confirmDialog(
             "Delete this memory?"
         );
 
@@ -1070,7 +1306,7 @@ async function deletePhoto(photoId) {
             error
         );
 
-        alert(
+        showToast(
             "Could not delete the memory. Please try again."
         );
     }
@@ -1129,7 +1365,7 @@ async function loadOlderMessages() {
         .limit(MESSAGE_PAGE_SIZE);
 
     if (error) {
-        alert("Could not load older messages.");
+        showToast("Could not load older messages.");
         return;
     }
 
@@ -1151,6 +1387,37 @@ async function loadOlderMessages() {
     chatMessages.scrollTop = chatMessages.scrollHeight - oldHeight;
 }
 
+function getDayKey(timestamp) {
+    const date = new Date(timestamp);
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function getDayLabel(timestamp) {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (getDayKey(date) === getDayKey(today)) return "Today";
+    if (getDayKey(date) === getDayKey(yesterday)) return "Yesterday";
+
+    return date.toLocaleDateString([], {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+    });
+}
+
+function createDateDivider(timestamp) {
+    const divider = document.createElement("div");
+    divider.className = "date-divider";
+
+    const label = document.createElement("span");
+    label.textContent = getDayLabel(timestamp);
+
+    divider.appendChild(label);
+    return divider;
+}
 /* =========================================================
    RENDER MESSAGES
 ========================================================= */
@@ -1168,8 +1435,10 @@ function renderMessages() {
             </div>
         `;
 
+        chatOpenLastRead = null;
         return;
     }
+
     if (hasMoreOlder) {
         const olderButton = document.createElement("button");
         olderButton.type = "button";
@@ -1178,13 +1447,61 @@ function renderMessages() {
         olderButton.addEventListener("click", loadOlderMessages);
         chatMessages.appendChild(olderButton);
     }
+
+    // Find the unread messages (only from your partner)
+    let unreadMessages = [];
+
+    if (chatOpenLastRead && currentUser) {
+        const lastReadTime = new Date(chatOpenLastRead).getTime();
+
+        unreadMessages = messages.filter(message =>
+            String(message.sender_id) !== String(currentUser.id) &&
+            new Date(message.created_at).getTime() > lastReadTime
+        );
+    }
+
+    const firstUnread = unreadMessages[0] || null;
+    let divider = null;
+    let previousDay = null;
     messages.forEach(message => {
+
+        // Date heading when the day changes
+        const dayKey = getDayKey(message.created_at);
+
+        if (dayKey !== previousDay) {
+            chatMessages.appendChild(createDateDivider(message.created_at));
+            previousDay = dayKey;
+        }
+        // Put the label right before the first unread message
+        if (firstUnread && message === firstUnread) {
+            divider = document.createElement("div");
+            divider.className = "unread-divider";
+            divider.textContent = unreadMessages.length === 1
+                ? "1 unread message"
+                : `${unreadMessages.length} unread messages`;
+
+            chatMessages.appendChild(divider);
+        }
+
         chatMessages.appendChild(
             createMessageElement(message)
         );
     });
 
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    if (divider) {
+        // Scroll so the label is at the top (or as high as possible)
+        const distance =
+            divider.getBoundingClientRect().top -
+            chatMessages.getBoundingClientRect().top;
+
+        chatMessages.scrollTop += distance - 8;
+
+    } else {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Use this only once, when the chat is opened
+    chatOpenLastRead = null;
 }
 function createMessageElement(message) {
     const mine =
@@ -1265,7 +1582,7 @@ function addMessageToChat(message, forceScroll = false) {
         chatMessages.clientHeight;
 
     const wasNearBottom = distanceFromBottom < 100;
-
+    const previousMessage = messages[messages.length - 1];
     messages.push(message);
     // Remove the empty-state message when the first message arrives.
     const emptyState = chatMessages.querySelector(".empty-state");
@@ -1273,7 +1590,12 @@ function addMessageToChat(message, forceScroll = false) {
     if (emptyState) {
         chatMessages.innerHTML = "";
     }
-
+    if (
+        !previousMessage ||
+        getDayKey(previousMessage.created_at) !== getDayKey(message.created_at)
+    ) {
+        chatMessages.appendChild(createDateDivider(message.created_at));
+    }
     const messageElement = createMessageElement(message);
 
     // Insert in chronological order without rebuilding existing bubbles.
@@ -1306,7 +1628,19 @@ function addMessageToChat(message, forceScroll = false) {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 }
+function removeEmptyDateDividers() {
+    chatMessages.querySelectorAll(".date-divider").forEach(divider => {
+        let next = divider.nextElementSibling;
 
+        if (next && next.classList.contains("unread-divider")) {
+            next = next.nextElementSibling;
+        }
+
+        if (!next || !next.classList.contains("chat-bubble-wrapper")) {
+            divider.remove();
+        }
+    });
+}
 
 function removeMessageFromChat(messageId) {
     messages = messages.filter(
@@ -1322,7 +1656,7 @@ function removeMessageFromChat(messageId) {
             element.remove();
         }
     });
-
+    removeEmptyDateDividers();
     // Show the empty state only if no messages remain.
     if (messages.length === 0) {
         renderMessages();
@@ -1344,7 +1678,7 @@ async function sendMessage() {
     stopTyping();
 
     if (!currentUser) {
-        alert("Please log in again.");
+        showToast("Please log in again.");
         return;
     }
 
@@ -1365,13 +1699,14 @@ async function sendMessage() {
 
         // Add the sent message if Realtime hasn't added it already.
         addMessageToChat(data, true);
+        markChatRead();
 
         messageInput.value = "";
 
     } catch (error) {
         console.error("SEND MESSAGE ERROR:", error);
 
-        alert("Message could not be sent. Please try again.");
+        showToast("Message could not be sent. Please try again.");
 
     } finally {
         sendMessageButton.disabled = false;
@@ -1384,7 +1719,7 @@ async function sendMessage() {
 
 async function deleteMessage(messageId) {
     if (!currentUser) {
-        alert("Please log in again.");
+        showToast("Please log in again.");
         return;
     }
 
@@ -1393,11 +1728,11 @@ async function deleteMessage(messageId) {
     );
 
     if (!message || String(message.sender_id) !== String(currentUser.id)) {
-        alert("You can only delete your own messages.");
+        showToast("You can only delete your own messages.");
         return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmDialog(
         "Delete this message for both of you?"
     );
 
@@ -1419,12 +1754,84 @@ async function deleteMessage(messageId) {
     } catch (error) {
         console.error("DELETE MESSAGE ERROR:", error);
 
-        alert(
+        showToast(
             "Could not delete the message. Please try again."
         );
     }
 }
+function updateUnreadBadge() {
+    const badge = document.getElementById("unreadBadge");
 
+    if (badge) {
+        badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+        badge.classList.toggle("hidden", unreadCount === 0);
+    }
+
+    // also shows the number in the browser tab title
+    document.title = unreadCount > 0
+        ? `(${unreadCount}) Duffer ❤️ Khushi`
+        : "Duffer ❤️ Khushi";
+}
+
+function getLastReadKey() {
+    return `lastRead_${currentUser.id}`;
+}
+
+// Saves "I have read up to the newest message I can see"
+function markChatRead() {
+    if (!currentUser || messages.length === 0) return;
+
+    const newest = messages[messages.length - 1].created_at;
+
+    try {
+        localStorage.setItem(getLastReadKey(), newest);
+    } catch (error) {
+        console.error("Could not save last read time:", error);
+    }
+}
+function getLastReadTime() {
+    if (!currentUser) return null;
+
+    try {
+        return localStorage.getItem(getLastReadKey());
+    } catch (error) {
+        return null;
+    }
+}
+
+// Counts messages from your partner that you have not read yet
+async function refreshUnreadCount() {
+    if (!currentUser) return;
+
+    let lastRead = null;
+
+    try {
+        lastRead = localStorage.getItem(getLastReadKey());
+    } catch (error) { }
+
+    // First time on this phone: start counting from now
+    if (!lastRead) {
+        lastRead = new Date().toISOString();
+
+        try {
+            localStorage.setItem(getLastReadKey(), lastRead);
+        } catch (error) { }
+    }
+
+    const { count, error } = await supabaseClient
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .gt("created_at", lastRead)
+        .neq("sender_id", currentUser.id);
+
+    if (error) {
+        console.error("UNREAD COUNT ERROR:", error);
+        return;
+    }
+
+    unreadCount = count || 0;
+    updateUnreadBadge();
+}
 /* =========================================================
    REALTIME
 ========================================================= */
@@ -1458,6 +1865,15 @@ function subscribeToRealtime() {
             payload => {
                 if (!messagePage.classList.contains("hidden")) {
                     addMessageToChat(payload.new);
+                    markChatRead();
+
+                } else if (
+                    currentUser &&
+                    payload.new &&
+                    String(payload.new.sender_id) !== String(currentUser.id)
+                ) {
+                    unreadCount++;
+                    updateUnreadBadge();
                 }
             }
         )
@@ -1696,6 +2112,83 @@ function formatDate(timestamp) {
             minute: "2-digit"
         }
     );
+}
+
+function showToast(message, type = "error") {
+    let container = document.getElementById("toastContainer");
+
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "toastContainer";
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add("toast-hide");
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+
+function confirmDialog(message, confirmText = "Delete") {
+    return new Promise(resolve => {
+
+        const overlay = document.createElement("div");
+        overlay.className = "confirm-overlay";
+
+        const box = document.createElement("div");
+        box.className = "confirm-box";
+
+        const text = document.createElement("p");
+        text.textContent = message;
+
+        const buttons = document.createElement("div");
+        buttons.className = "confirm-buttons";
+
+        const cancelButton = document.createElement("button");
+        cancelButton.type = "button";
+        cancelButton.className = "confirm-cancel";
+        cancelButton.textContent = "Cancel";
+
+        const okButton = document.createElement("button");
+        okButton.type = "button";
+        okButton.className = "confirm-ok";
+        okButton.textContent = confirmText;
+
+        function close(result) {
+            document.removeEventListener("keydown", onKey);
+            overlay.remove();
+            resolve(result);
+        }
+
+        function onKey(event) {
+            if (event.key === "Escape") close(false);
+        }
+
+        cancelButton.addEventListener("click", () => close(false));
+        okButton.addEventListener("click", () => close(true));
+
+        overlay.addEventListener("click", event => {
+            if (event.target === overlay) close(false);
+        });
+
+        document.addEventListener("keydown", onKey);
+
+        buttons.appendChild(cancelButton);
+        buttons.appendChild(okButton);
+        box.appendChild(text);
+        box.appendChild(buttons);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        cancelButton.focus();
+    });
 }
 
 
